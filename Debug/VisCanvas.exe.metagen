@@ -61,14 +61,14 @@ Struct DomNomSetsLinesBetweenCords: AutoLayout, AnsiClass, Class, Public, Sequen
   :System.ValueType
 Struct DNSRule: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
   :System.ValueType
+  Methods:
+    <MarshalCopy>(DNSRule*, DNSRule*): PrivateScope, Public, Static, SpecialName
+    <MarshalDestroy>(DNSRule*): PrivateScope, Public, Static, SpecialName
 Class VisCanvas.loadingForm: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
   :System.Windows.Forms.Form
     Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
-  Fields:
-    Boolean loading : Public
   Methods:
     updateLabel(String): PrivateScope, Public, HideBySig
-    InitializeComponent(): PrivateScope, Public, HideBySig
 Class OpenGLForm.COpenGL: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
   :System.Windows.Forms.NativeWindow
     Void .ctor(System.Windows.Forms.Form, Int32, Int32): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName

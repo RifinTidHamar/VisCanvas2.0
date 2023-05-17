@@ -101,9 +101,10 @@ void OpenGLForm::COpenGL::generateRulesDNS()
 	for (int i = 0; i < precThreshs.size(); i++)
 	{
 		string beg = "\n\n=============";
-		string mid = to_string(precThreshs[i]);
+		string prec = to_string(precThreshs[i]);
 		string end = "===============\n\n";
-		rules.push_back(beg + mid + end);		
+		rules.push_back(beg + prec + end);		
+		thread.updateLoadingText(prec + "% precision");
 		pair<vector<string>, vector<DNSRule>> Per = this->domNomVisualization->MTBRGSequential(precThreshs[i], groups, classToTest);
 		for (int i = 0; i < Per.first.size(); i++)
 		{

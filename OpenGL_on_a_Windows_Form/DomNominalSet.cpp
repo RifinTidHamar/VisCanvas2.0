@@ -8,6 +8,8 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <unordered_set>
+
 
 using namespace System::Windows::Forms;
 
@@ -3716,7 +3718,6 @@ vector<string> DomNominalSet::ruleGenerationSequential()
 //Desc: Generates rules sequentailly to ensure there is little overlap. Uses Pareto front rules and applies thresholds.
 pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double precisionThresh, vector<vector<int>>groups, int targetClass)
 {
-	//loadLoadingFormFunc();
 	vector<string> toReturn;
 	vector<int> allGroupCases;
 	vector<DNSRule> allGroupRules;
@@ -3831,7 +3832,7 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 			if (curRuleCases.size() == 52)
 			{
 				int x = 0;
-			}
+			}//What is the purpose of this if-statement? 
 
 			//Determine if any other rules are more general with the same or better precision.
 			for (int j = i + 1; j < newTargetCasesPerRuleIndex.size(); j++)
@@ -4160,6 +4161,9 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 		}
 	}
 
+	//combine rules with little overlap
+	allGroupRules = combineAndTest(totalTargetInData, allGroupRules, 5, 95);
+
 	toReturn.push_back(("\nAll Generated rules: " + to_string(allGroupRules.size()) + " All cases covered: " +
 		to_string(allGroupCases.size()) + " Total target class cases covered by rules: " + to_string(casesInTargetClass) +
 		" Total incorrectly predicted cases: " + to_string(incorrectCases.size()) + ", Target cases in data: " + to_string(totalTargetInData) + "\n\n"));
@@ -4181,18 +4185,69 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 		vector<double> curAttri = curRule.getAttributesUsed();
 		vector<double> negatedAttri = curRule.getNegatedAttributesUsed();
 
-		for (int j = 0; j < curCoord.size(); j++)
+
+
+		int lessThanGreaterThanCount = 0;
+		int lessThanGreaterThanStart = 0;
+		//might need to go back to curCoord
+		bool printNeg = true;
+		int curIndex = 0;
+		for (int j = 0; j < curAttri.size() + negatedAttri.size(); j++)
 		{
-			string s = to_string(curAttri.at(j));
-			if (negatedAttri.size() >= 1 && j == (int)negatedAttri.front())
+			
+			if (curRule.orIndexes.size() > 0 && j == curRule.orIndexes[0] + 1)
 			{
-				toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + "=\\ " + s + "\n");
+				toReturn.push_back("OR\n");
+				curRule.orIndexes.erase(curRule.orIndexes.begin());
+				curIndex = 0;
+			}
+
+			string ruleValString = to_string((int)curAttri.at(j));
+			if (negatedAttri.size() >= 1 && curIndex == (int)negatedAttri.front())
+			{
+				toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + " =\\ " + ruleValString + "\n");
 				negatedAttri.erase(negatedAttri.begin());
 			}
 			else
 			{
-				toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + " = " + s + "\n");
+				if (j < curCoord.size() - 1 && curAttri.at(j + 1) == curAttri.at(j) + 1 && curCoord.at(j) == curCoord.at(j+1))
+				{
+					if (lessThanGreaterThanCount == 0)
+					{
+						lessThanGreaterThanStart = curAttri.at(j);
+					}
+					lessThanGreaterThanCount++;
+				}
+				else if (lessThanGreaterThanCount == 0)
+				{
+					toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + " = " + ruleValString + "\n");
+				}
+				else
+				{
+					toReturn.push_back(to_string(lessThanGreaterThanStart) + " <= X" + to_string(curCoord.at(j) + 1) + " <= " + ruleValString + "\n");
+					lessThanGreaterThanCount = 0;
+				}
 			}
+			curIndex++;
+		}
+
+		//print overlap information--just uncomment 
+		 
+		toReturn.push_back("Overlap information each rule:\n");
+		//generate rules overlap with all other rules in group
+		for (int j = 0; j < allGroupRules.size(); j++)
+		{
+			//skip same rules
+			if (j == i)
+				continue;
+			int overlapCases = calculateOverlap(allGroupRules[i], allGroupRules[j]);
+			int totalCases = allGroupRules[i].getTotalCases() + allGroupRules[j].getTotalCases() - overlapCases;
+			double overlapPercentage = ((double)overlapCases / (double)totalCases) * 100;
+			int ruleOneCount = i + 1;
+			int ruleTwoCount = j + 1;
+			toReturn.push_back("overlap percentage between rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(overlapPercentage) + "%\n");
+			toReturn.push_back("Total cases of Rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(totalCases) + "\n");
+			toReturn.push_back("Overlap cases between Rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(overlapCases) + "\n\n");
 		}
 		toReturn.push_back("\n");
 	}
@@ -4203,7 +4258,194 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 	return finalResults;
 }//End of rule generation sequential all attributes.
 
-//combineRulesGenerated:
+//combineRulesGenerated://good
+int DomNominalSet::calculateOverlap(DNSRule rule1, DNSRule rule2) 
+{
+	//this if may not really be necessary
+	if (rule1.getCasesUsed().size() == 0 || rule2.getCasesUsed().size() == 0)
+	{
+		return 0;
+	}
+	int overlapCases = 0;
+	int minRuleCount = min(rule1.getTotalCases(), rule2.getTotalCases());
+	DNSRule maxVec;
+	DNSRule minVec;
+	if (rule1.getTotalCases() >= rule2.getTotalCases())
+	{
+		maxVec = rule1;
+		minVec = rule2;
+	}
+	else
+	{
+		maxVec = rule2;
+		minVec = rule1;
+	}
+
+	vector<int> casesUsedMaxRule = maxVec.getCasesUsed();
+	vector<int> casesUsedMinRule = minVec.getCasesUsed();
+
+	unordered_set<int> ruleCases;
+	for (int k = 0; k < casesUsedMaxRule.size(); k++)
+	{
+		ruleCases.insert(casesUsedMaxRule[k]);
+	}
+	//if each rule covers the same case
+	for (int k = 0; k < minRuleCount; k++)
+	{
+		if (ruleCases.find(casesUsedMinRule[k]) != ruleCases.end())
+		{
+			overlapCases++;
+		}
+	}
+	return overlapCases;
+}
+
+//good
+vector<double> DomNominalSet::intersectVectors(vector<double> one, vector<double> two)
+{
+	vector<double> mergedVec;
+
+	// Merge vec1 and vec2
+	mergedVec.reserve(one.size() + two.size());  // Reserve memory for the merged vector
+	mergedVec.insert(mergedVec.end(), one.begin(), one.end());  // Insert vec1 into mergedVec
+	mergedVec.insert(mergedVec.end(), two.begin(), two.end());  // Insert vec2 into mergedVec
+
+	// Remove duplicates
+	std::sort(mergedVec.begin(), mergedVec.end());  // Sort the merged vector
+	auto last = std::unique(mergedVec.begin(), mergedVec.end());  // Remove duplicates
+	mergedVec.erase(last, mergedVec.end());  // Erase the duplicates from the merged vector
+
+	return mergedVec;
+}
+
+//good
+vector<int> DomNominalSet::intersectVectors(vector<int> one, vector<int> two)
+{
+	vector<int> mergedVec;
+
+	// Merge vec1 and vec2
+	mergedVec.reserve(one.size() + two.size());  // Reserve memory for the merged vector
+	mergedVec.insert(mergedVec.end(), one.begin(), one.end());  // Insert vec1 into mergedVec
+	mergedVec.insert(mergedVec.end(), two.begin(), two.end());  // Insert vec2 into mergedVec
+
+	// Remove duplicates
+	std::sort(mergedVec.begin(), mergedVec.end());  // Sort the merged vector
+	auto last = std::unique(mergedVec.begin(), mergedVec.end());  // Remove duplicates
+	mergedVec.erase(last, mergedVec.end());  // Erase the duplicates from the merged vector
+
+	return mergedVec;
+}
+
+vector<double> DomNominalSet::unionVectors(vector<double> one, vector<double> two)
+{
+	one.insert(one.end(), two.begin(), two.end());
+	return one;
+}
+
+vector<int> DomNominalSet::unionVectors(vector<int> one, vector<int> two)
+{
+	one.insert(one.end(), two.begin(), two.end());
+	return one;
+}
+
+DNSRule DomNominalSet::combineRules(DNSRule rule1, DNSRule rule2, double overlapThreshold, int casesInTarget) 
+{
+	int overlapCases = calculateOverlap(rule1, rule2);
+	int totalCases = rule1.getTotalCases() + rule2.getTotalCases() - overlapCases;
+	double overlapPercentage = ((double)overlapCases / (double)totalCases) * 100;
+	if (overlapPercentage >= overlapThreshold) 
+	{
+		DNSRule empty;
+		empty.setTotalCases(0);
+		return empty;// return an empty rule to indicate no combination was made
+	}
+	DNSRule combinedRule;
+	//look at this to get multiple ORs
+	if (combinedRule.orIndexes.size() > 0)
+	{
+		combinedRule.orIndexes.push_back(combinedRule.orIndexes.back() + (rule1.getAttributesUsed().size() + rule1.getNegatedAttributesUsed().size()) - 1);
+	}
+	else
+	{
+		combinedRule.orIndexes.push_back((rule1.getAttributesUsed().size() + rule1.getNegatedAttributesUsed().size()) - 1);
+	}
+	combinedRule.setAttributesUsed(unionVectors(rule1.getAttributesUsed(), rule2.getAttributesUsed()));
+	combinedRule.setNegatedAttributesUsed(unionVectors(rule1.getNegatedAttributesUsed(), rule2.getNegatedAttributesUsed()));
+	combinedRule.setCoordinatesUsed(unionVectors(rule1.getCoordinatesUsed(), rule2.getCoordinatesUsed()));
+	combinedRule.setCasesUsed(intersectVectors(rule1.getCasesUsed(), rule2.getCasesUsed()));
+	combinedRule.setCorrectCases(totalCases);// mergeVectors(rule1.getCorrectCases(), rule2.getCorrectCases()));//can't just add correct cases since some correct casess might be the same.
+	combinedRule.setIncorrectCases(0);// rule1.getIncorrectCases() + rule2.getIncorrectCases());//same as above
+	combinedRule.setTotalCases(totalCases);
+	combinedRule.setTotalCoverage(((double)combinedRule.getTotalCases()/(double)casesInTarget) * 100); 
+	combinedRule.setRuleClass(rule1.getRuleClass()); // set the class of the first rule (assuming they are the same)
+	combinedRule.setPrecision(100);
+	return combinedRule;
+}
+
+double DomNominalSet::calculatePrecision(DNSRule rule) 
+{
+	if (rule.getTotalCases() == 0) {
+		return 0;
+	}
+	return ((double)rule.getCorrectCases() / (double)rule.getTotalCases()) * 100;
+}
+
+vector<DNSRule> DomNominalSet::combineAndTest(int casesInTargetClass, vector<DNSRule> rules, double overlapThreshold, double minPrecision) 
+{
+	//vector<DNSRule> combinedRules;
+	//while (!rules.empty()) 
+	//{
+	//	DNSRule currentRule = rules.back();
+	//	rules.pop_back();
+	//	bool combined = false;
+	//	for (int i = 0; i < rules.size(); i++) 
+	//	{
+	//		DNSRule otherRule = rules[i];
+	//		DNSRule combinedRule = combineRules(currentRule, otherRule, overlapThreshold, casesInTargetClass);
+	//		//float prec = calculatePrecision(combinedRule);
+	//		if (combinedRule.getTotalCases() > 0)//prec >= minPrecision)
+	//		{
+	//			rules.erase(rules.begin() + i);
+	//			rules.push_back(combinedRule);
+	//			combined = true;
+	//			break;//reconsider this
+	//		}
+	//	}
+	//	if (!combined) 
+	//	{
+	//		combinedRules.push_back(currentRule);
+	//	}
+	//}
+	for (int j = 0; j < rules.size(); j++)
+	{
+		DNSRule curRule = rules[j];
+		for (int i = 0; i < rules.size(); i++)
+		{
+			if (j == i) continue;
+			DNSRule otherRule = rules[i];
+			DNSRule combinedRule = combineRules(curRule, otherRule, overlapThreshold, casesInTargetClass);
+			if (combinedRule.getTotalCases() > 0)
+			{
+				rules.erase(rules.begin() + i);
+				rules.erase(rules.begin() + j);
+				rules.push_back(combinedRule);
+			}
+		}
+	}
+	
+
+	//vector<DNSRule> highPrecisionRules;
+	//for (DNSRule& rule : rules) 
+	//{
+	//	if (rule.getPrecision() >= minPrecision)//calculatePrecision(rule) >= minPrecision) 
+	//	{
+	//		highPrecisionRules.push_back(rule);
+	//	}
+	//}
+
+	return rules;
+}
+
 //Desc: Takes a list of generated rules and adds simple combinations of rules to the end.
 vector<DNSRule> DomNominalSet::combineRulesGenerated(vector<DNSRule> allGeneratedRules, int targetClass, int numCasesInTargetClass, double precThresh)
 {

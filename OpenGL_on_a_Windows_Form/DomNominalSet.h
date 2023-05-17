@@ -69,7 +69,15 @@ public:
 	vector<string> determineRules();//Old
 	vector<string> ruleGenerationSequential();//Old
 	pair<vector<string>, vector<DNSRule>> MTBRGSequential(double precisionThresh, vector<vector<int>>groups, int targetClass);
+	int calculateOverlap(DNSRule rule1, DNSRule rule2);
+	DNSRule combineRules(DNSRule rule1, DNSRule rule2, double overlapThreshold, int casesInTarget);
 	vector<DNSRule> combineRulesGenerated(vector<DNSRule> generatedRules, int targetClass, int numCasesInTargetClass, double precThresh);
+	double calculatePrecision(DNSRule rule);
+	vector<double> intersectVectors(vector<double> one, vector<double> two);
+	vector<int> intersectVectors(vector<int> one, vector<int> two);
+	vector<double> unionVectors(vector<double> one, vector<double> two);
+	vector<int> unionVectors(vector<int> one, vector<int> two);
+	vector<DNSRule> combineAndTest(int casesInTargetClass, vector<DNSRule> rules, double overlapThreshold, double minPrecision);
 	vector<DNSRule> MTBRuleGeneration(double PrecThresh, vector<int> group, double covThresh, int targetClass, int totalCasesInTarget);
 	vector<string> MTBRuleGenResults(double precisionThresh, vector<vector<int>>groups, int targetClass);
 	vector<string> ParetoFrontRuleGenWithOverlap(double precisionThresh, vector<vector<int>>groups, int targetClass);

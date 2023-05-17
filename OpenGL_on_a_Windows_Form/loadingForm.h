@@ -34,7 +34,6 @@ namespace VisCanvas {
 			}
 		}
 
-	protected:
 	private: System::Windows::Forms::Label^ loadingLabel;
 
 	public: void updateLabel(String^ text)
@@ -48,8 +47,6 @@ namespace VisCanvas {
 		/// Required designer variable.
 		/// </summary>
 		System::ComponentModel::Container ^components;
-
-	public: bool loading = true;
 
 #pragma region Windows Form Designer generated code
 		/// <summary>
@@ -76,7 +73,7 @@ namespace VisCanvas {
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(237, 42);
+			this->ClientSize = System::Drawing::Size(625, 138);
 			this->Controls->Add(this->loadingLabel);
 			this->Name = L"loadingForm";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
@@ -86,7 +83,5 @@ namespace VisCanvas {
 
 		}
 #pragma endregion
-	private: System::Void pictureBox1_Click(System::Object^ sender, System::EventArgs^ e) {
-	}
 	};
 }

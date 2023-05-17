@@ -38,6 +38,11 @@ public:
 	void setTotalCoverage(double);
 	double getTotalCoverage();
 
+	//public variables; Why would you need to make a getter and setter for a variable? I might as well just use the variable 
+	//if I can still read and modify it
+	vector<int> orIndexes; //this will have the indexes of the used Attributes which are OR, for example: x1 = 5 or x1 = 2
+	vector<int> andIndexes;
+
 private:
 
 	vector<double> attributesUsed; //list of attributes used.

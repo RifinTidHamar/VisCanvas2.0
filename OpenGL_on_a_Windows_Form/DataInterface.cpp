@@ -7,6 +7,7 @@
 #include "DataSet.h"
 #include "SetCluster.h"
 #include "VisCanvas.h"
+#include "threadedLoadingForm.h"
 
 #include <vector>
 #include <set>
@@ -52,6 +53,8 @@ DataInterface::~DataInterface() {
 
 // parse the data in the file at the passed path into the object
 bool DataInterface::readFile(string * filePath) {
+
+
 	std::vector<std::vector<std::string>*>* fileLines = readFileIntoVector(filePath);
 	if (fileLines == nullptr) {
 		return false;
@@ -98,7 +101,10 @@ bool DataInterface::readFile(string * filePath) {
 		return false;
 	}
 	// perform final setup operations
+	threadedLoadingForm threadedForm;//loading form incase data takes a long time to load
+	threadedForm.loadLoadingForm();
 	finalInit();
+	threadedForm.terminateLoadingForm();
 	return true;
 }
 

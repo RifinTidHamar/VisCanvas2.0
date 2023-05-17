@@ -19,8 +19,8 @@ Interface Microsoft.VisualC.StlClr.Generic.INode`1[TValue]: AutoLayout, AnsiClas
   Properties:
     TValue& _Value 'get set' : 
   Methods:
-    set__Value(TValue&): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
     get__Value(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set__Value(TValue&): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
     container(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
     is_head(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
     next_node(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
