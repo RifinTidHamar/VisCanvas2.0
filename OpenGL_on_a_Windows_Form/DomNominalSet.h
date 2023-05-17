@@ -76,6 +76,7 @@ public:
 	vector<double> intersectVectors(vector<double> one, vector<double> two);
 	vector<int> intersectVectors(vector<int> one, vector<int> two);
 	vector<double> unionVectors(vector<double> one, vector<double> two);
+	vector<double> combineNegatedAttributes(DNSRule one, DNSRule two);
 	vector<int> unionVectors(vector<int> one, vector<int> two);
 	vector<DNSRule> combineAndTest(int casesInTargetClass, vector<DNSRule> rules, double overlapThreshold, double minPrecision);
 	vector<DNSRule> MTBRuleGeneration(double PrecThresh, vector<int> group, double covThresh, int targetClass, int totalCasesInTarget);

@@ -36,14 +36,14 @@ vector<double> DNSRule::getAttributesUsed()
 	return attributesUsed;
 }
 
-void DNSRule::setNegatedAttributesUsed(vector<double> toSet)
+void DNSRule::setNegatedAttributesIndexes(vector<double> toSet)
 {
-	this->negatedAttributes = toSet;
+	this->negatedAttributesIndexes = toSet;
 }
 
-vector<double> DNSRule::getNegatedAttributesUsed()
+vector<double> DNSRule::getNegatedAttributesIndexes()
 {
-	return this->negatedAttributes;
+	return this->negatedAttributesIndexes;
 }
 
 void DNSRule::setCoordinatesUsed(vector<int> toSet)

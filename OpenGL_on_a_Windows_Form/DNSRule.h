@@ -17,8 +17,8 @@ public:
 	//Getters and Setters:
 	void setAttributesUsed(vector<double>);
 	vector<double> getAttributesUsed();
-	void setNegatedAttributesUsed(vector<double>);
-	vector<double> getNegatedAttributesUsed();
+	void setNegatedAttributesIndexes(vector<double>);
+	vector<double> getNegatedAttributesIndexes();
 	void setCoordinatesUsed(vector<int>);
 	vector<int> getCoordinatesUsed();
 	void setCasesUsed(vector<int>);
@@ -42,11 +42,11 @@ public:
 	//if I can still read and modify it
 	vector<int> orIndexes; //this will have the indexes of the used Attributes which are OR, for example: x1 = 5 or x1 = 2
 	vector<int> andIndexes;
+	vector<double> negatedAttributesIndexes; //list of negated attributes.
 
 private:
 
 	vector<double> attributesUsed; //list of attributes used.
-	vector<double> negatedAttributes; //list of negated attributes.
 	vector<int> coordinatesUsed; //list of coordinates used.
 	vector<int> casesUsed; //list of cases used.
 	int correctCases; //Total correct cases in the rule.
