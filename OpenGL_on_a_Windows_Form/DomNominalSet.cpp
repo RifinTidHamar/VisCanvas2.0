@@ -9,7 +9,8 @@
 #include <iostream>
 #include <cmath>
 #include <unordered_set>
-
+#include <list>
+#include <algorithm>
 
 using namespace System::Windows::Forms;
 
@@ -4162,7 +4163,7 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 	}
 
 	//combine rules with little overlap
-	allGroupRules = combineAndTest(totalTargetInData, allGroupRules, 5, 95);
+	//allGroupRules = combineAndTest(totalTargetInData, allGroupRules, 5, 95);
 
 	toReturn.push_back(("\nAll Generated rules: " + to_string(allGroupRules.size()) + " All cases covered: " +
 		to_string(allGroupCases.size()) + " Total target class cases covered by rules: " + to_string(casesInTargetClass) +
@@ -4187,12 +4188,11 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 
 
 
-		int lessThanGreaterThanCount = 0;
-		int lessThanGreaterThanStart = 0;
+
 		int curIndex = 0;
 		for (int j = 0; j < curCoord.size(); j++)
 		{
-			
+			if (curCoord.at(j) < 0) continue;
 			if (curRule.orIndexes.size() > 0 && j == curRule.orIndexes[0] + 1)
 			{
 				toReturn.push_back("OR\n");
@@ -4208,46 +4208,103 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 			}
 			else
 			{
-				if (j < curCoord.size() - 1 && curAttri.at(j + 1) == curAttri.at(j) + 1 && curCoord.at(j) == curCoord.at(j+1))
+				vector<double> orderedAttributes;// = curAttri;
+				int correspondingCoord = curCoord.at(j);
+				curCoord[j] = -10;
+				orderedAttributes.push_back(curAttri.at(j));
+				curAttri[j] = -10;
+				for (int k = 0; k < curCoord.size(); k++)
 				{
-					if (lessThanGreaterThanCount == 0)
+					if (k == j) continue;
+					double frontAttriVal = orderedAttributes.front();
+					double backAttriVal = orderedAttributes.back();
+					bool greater = curAttri.at(k) > frontAttriVal;
+					bool less = curAttri.at(k) < backAttriVal;
+					if (curCoord.at(k) == correspondingCoord)
 					{
-						lessThanGreaterThanStart = curAttri.at(j);
+						if (greater)
+						{
+							orderedAttributes.insert(orderedAttributes.end(), curAttri.at(k));
+							curAttri[k] = -10;
+							curCoord[k] = -10;
+						}
+						else if (less)
+						{
+							orderedAttributes.insert(orderedAttributes.begin(), curAttri.at(k));
+							curAttri[k] = -10;
+							curCoord[k] = -10;
+						}
 					}
-					lessThanGreaterThanCount++;
 				}
-				else if (lessThanGreaterThanCount == 0)
+				if (orderedAttributes.size() == 1)
 				{
-					toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + " = " + ruleValString + "\n");
+					toReturn.push_back("X" + to_string(correspondingCoord + 1) + " = " + to_string(orderedAttributes.back()) + "\n");
 				}
 				else
 				{
-					toReturn.push_back(to_string(lessThanGreaterThanStart) + " <= X" + to_string(curCoord.at(j) + 1) + " <= " + ruleValString + "\n");
-					lessThanGreaterThanCount = 0;
+					std::sort(orderedAttributes.begin(), orderedAttributes.end());
+					int lessThanGreaterThanCount = 0;
+					int lessThanGreaterThanStart = 0;
+					for (int k = 0; k < orderedAttributes.size(); k++)
+					{
+						if (k < orderedAttributes.size() - 1 && orderedAttributes[k + 1] == orderedAttributes[k] + 1)
+						{
+							if (lessThanGreaterThanCount == 0)
+							{
+								lessThanGreaterThanStart = orderedAttributes[k];
+							}
+							lessThanGreaterThanCount++;
+							
+						}
+						else if (lessThanGreaterThanCount == 0)
+						{
+							toReturn.push_back("X" + to_string(correspondingCoord + 1) + " = " + to_string((int)orderedAttributes[k]) + "\n");
+						}
+						else
+						{
+							toReturn.push_back(to_string(lessThanGreaterThanStart) + " <= X" + to_string(correspondingCoord + 1) + " <= " + to_string((int)orderedAttributes[k]) + "\n");
+							lessThanGreaterThanCount = 0;
+						}
+						/*if (orderedAttributes[k] == curSequent + 1)
+						{
+							sequentCount++;
+						}
+						else if (sequentCount == 0)
+						{
+							toReturn.push_back("X" + to_string(curSequent + 1) + " = " + to_string(orderedAttributes.back()) + "\n");
+							curSequent = orderedAttributes[k];
+						}
+						else
+						{
+							double val = orderedAttributes[sequentCount];
+							toReturn.push_back(to_string(curSequent + 1) + " <= X" + to_string(correspondingCoord + 1) + " <= " + to_string(orderedAttributes.front() + 1) + "\n");
+						}*/
+					}
 				}
 			}
 			curIndex++;
 		}
 
+		toReturn.push_back("\n");
 		//print overlap information--just uncomment 
 		 
-		toReturn.push_back("Overlap information each rule:\n");
-		//generate rules overlap with all other rules in group
-		for (int j = 0; j < allGroupRules.size(); j++)
-		{
-			//skip same rules
-			if (j == i)
-				continue;
-			int overlapCases = calculateOverlap(allGroupRules[i], allGroupRules[j]);
-			int totalCases = allGroupRules[i].getTotalCases() + allGroupRules[j].getTotalCases() - overlapCases;
-			double overlapPercentage = ((double)overlapCases / (double)totalCases) * 100;
-			int ruleOneCount = i + 1;
-			int ruleTwoCount = j + 1;
-			toReturn.push_back("overlap percentage between rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(overlapPercentage) + "%\n");
-			toReturn.push_back("Total cases of Rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(totalCases) + "\n");
-			toReturn.push_back("Overlap cases between Rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(overlapCases) + "\n\n");
-		}
-		toReturn.push_back("\n");
+		//toReturn.push_back("Overlap information each rule:\n");
+		////generate rules overlap with all other rules in group
+		//for (int j = 0; j < allGroupRules.size(); j++)
+		//{
+		//	//skip same rules
+		//	if (j == i)
+		//		continue;
+		//	int overlapCases = calculateOverlap(allGroupRules[i], allGroupRules[j]);
+		//	int totalCases = allGroupRules[i].getTotalCases() + allGroupRules[j].getTotalCases() - overlapCases;
+		//	double overlapPercentage = ((double)overlapCases / (double)totalCases) * 100;
+		//	int ruleOneCount = i + 1;
+		//	int ruleTwoCount = j + 1;
+		//	toReturn.push_back("overlap percentage between rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(overlapPercentage) + "%\n");
+		//	toReturn.push_back("Total cases of Rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(totalCases) + "\n");
+		//	toReturn.push_back("Overlap cases between Rule " + to_string(ruleOneCount) + " and " + to_string(ruleTwoCount) + ": " + to_string(overlapCases) + "\n\n");
+		//}
+		//toReturn.push_back("\n");
 	}
 	pair<vector<string>, vector<DNSRule>> finalResults;
 	finalResults.first = toReturn;
