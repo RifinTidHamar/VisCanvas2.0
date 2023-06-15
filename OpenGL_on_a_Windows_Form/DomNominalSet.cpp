@@ -4193,20 +4193,39 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 		vector<double> negatedAttri = curRule.getNegatedAttributesIndexes();
 
 		int curIndex = 0;
+		bool tabbed = false;
 		for (int j = 0; j < curCoord.size(); j++)
 		{
+			
 			if (curCoord.at(j) < 0) continue;
+
+			
+
 			if (curRule.orIndexes.size() > 0 && j == curRule.orIndexes[0] + 1)
 			{
+				if (tabbed)
+				{
+					toReturn.push_back("      ");
+				}
 				toReturn.push_back("OR\n");
 				curRule.orIndexes.erase(curRule.orIndexes.begin());
 				curIndex = 0;
 			}
+			else if (curRule.andIndexes.size() > 0 && j == curRule.andIndexes[0] + 1)
+			{
+				toReturn.push_back("AND\n");
+				curRule.andIndexes.erase(curRule.andIndexes.begin());
+				curIndex = 0;
+				tabbed = true;
+			}
 
-			string ruleValString = to_string((int)curAttri.at(j));
 			if (negatedAttri.size() >= 1 && j == (int)negatedAttri.front())
 			{
-				toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + " =\\ " + ruleValString + "\n");
+				if (tabbed)
+				{
+					toReturn.push_back("      ");
+				}
+				toReturn.push_back("X" + to_string(curCoord.at(j) + 1) + " =\\ " + to_string((int)curAttri.at(j)) + "\n");
 				negatedAttri.erase(negatedAttri.begin());
 			}
 			else
@@ -4241,7 +4260,11 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 				}
 				if (orderedAttributes.size() == 1)
 				{
-					toReturn.push_back("X" + to_string(correspondingCoord + 1) + " = " + to_string(orderedAttributes.back()) + "\n");
+					if (tabbed)
+					{
+						toReturn.push_back("      ");
+					}
+					toReturn.push_back("X" + to_string(correspondingCoord + 1) + " = " + to_string((int)orderedAttributes.back()) + "\n");
 				}
 				else
 				{
@@ -4261,22 +4284,37 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 						}
 						else if (lessThanGreaterThanCount == 0)
 						{
+							if (tabbed)
+							{
+								toReturn.push_back("      ");
+							}
 							toReturn.push_back("X" + to_string(correspondingCoord + 1) + " = " + to_string((int)orderedAttributes[k]) + "\n");
 							if (k < orderedAttributes.size() - 1)
 							{
+								if (tabbed)
+								{
+									toReturn.push_back("      ");
+								}
 								toReturn.push_back("OR\n");
 							}
 						}
 						else
 						{
+							if (tabbed)
+							{
+								toReturn.push_back("      ");
+							}
 							toReturn.push_back(to_string(lessThanGreaterThanStart) + " <= X" + to_string(correspondingCoord + 1) + " <= " + to_string((int)orderedAttributes[k]) + "\n");
 							lessThanGreaterThanCount = 0;
 							if (k < orderedAttributes.size() - 1)
 							{
+								if (tabbed)
+								{
+									toReturn.push_back("      ");
+								}
 								toReturn.push_back("OR\n");
 							}
 						}
-
 					}
 				}
 			}
@@ -4311,26 +4349,35 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 	return finalResults;
 }//End of rule generation sequential all attributes.
 
+
+
 vector<DNSRule> DomNominalSet::combineSimilarTwoClauseRules(vector<DNSRule> rules, int casesInTarget)
 {
+	vector<DNSRule> combinedRules; // Vector to store the combined rules
+
 	for (size_t i = 0; i < rules.size(); ++i)
 	{
-		if (rules[i].getCoordinatesUsed().size() > 2)
+		if (rules[i].getCoordinatesUsed().size() > 2 || rules[i].markedForErasal)
+		{
+			//combinedRules.push_back(rules[i]); // Add non-combinable rule to combinedRules
 			continue;
+		}
 
 		vector<int> curCoords = rules[i].getCoordinatesUsed();
 		vector<double> curAttris = rules[i].getAttributesUsed();
-
-		bool nextLoop = false;
+		vector<double> curNegAttries = rules[i].getNegatedAttributesIndexes();
+		bool exitLoop = false;
 
 		for (size_t j = i + 1; j < rules.size(); ++j)
 		{
 			if (rules[j].getCoordinatesUsed().size() > 2 || rules[j].markedForErasal)
 				continue;
-			if (nextLoop)
+			if (exitLoop)
 				break;
 			vector<int> checkCoords = rules[j].getCoordinatesUsed();
 			vector<double> checkAttris = rules[j].getAttributesUsed();
+			vector<double> checkNegAttries = rules[j].getNegatedAttributesIndexes();
+			int x = rules[j].getAttributesUsed()[0];
 
 			for (int k = 0; k < 2; k++)
 			{
@@ -4338,30 +4385,64 @@ vector<DNSRule> DomNominalSet::combineSimilarTwoClauseRules(vector<DNSRule> rule
 				vector<double>::iterator attriCheckIndexIter;
 
 				coordCheckIndexIter = std::find(checkCoords.begin(), checkCoords.end(), curCoords[k]);
-				attriCheckIndexIter = std::find(checkAttris.begin(), checkAttris.end(), curAttris[k]);
+				//attriCheckIndexIter = std::find(checkAttris.begin(), checkAttris.end(), curAttris[k]);
+				bool matchingCoord = coordCheckIndexIter != checkCoords.end();
 
 				int coordCheckIndex = coordCheckIndexIter - checkCoords.begin();
-				int attriCheckIndex = attriCheckIndexIter - checkAttris.begin();
+				//int attriCheckIndex = attriCheckIndexIter - checkAttris.begin();
 
-				if (coordCheckIndexIter != checkCoords.end() && attriCheckIndexIter != checkAttris.end() &&
-					coordCheckIndex == attriCheckIndex)
+				bool sameAttriCoordIndex = matchingCoord ? checkAttris[coordCheckIndex] == curAttris[coordCheckIndex] : false;
+
+				vector<double>::iterator negCurAttriCheckIndexIter = std::find(curNegAttries.begin(), curNegAttries.end(), (double)coordCheckIndex);
+				bool matchingNegCurAttri = negCurAttriCheckIndexIter != curNegAttries.end();
+				vector<double>::iterator negCheckAttriCheckIndexIter = std::find(checkNegAttries.begin(), checkNegAttries.end(), (double)coordCheckIndex);
+				bool matchingNegCheckAttri = negCheckAttriCheckIndexIter != checkNegAttries.end();
+
+				bool matchingCurNegAttri = negCurAttriCheckIndexIter != curNegAttries.end();
+				bool matchingCheckNegAttri = negCheckAttriCheckIndexIter != checkNegAttries.end();
+
+				int negCurAttriCheckIndex = negCurAttriCheckIndexIter - curNegAttries.begin();
+				int negCheckAttriCheckIndex = negCheckAttriCheckIndexIter - checkNegAttries.begin();
+
+				bool sameNegAttri = false;
+
+				if (matchingCurNegAttri && matchingCheckNegAttri && negCurAttriCheckIndex == negCheckAttriCheckIndex)
+				{
+					sameNegAttri = true;
+				}
+				else if (!(matchingCurNegAttri || matchingCheckNegAttri))
+				{
+					sameNegAttri = true;
+				}
+
+				//neg attri issue start here
+
+
+
+				if (matchingCoord /*&& attriCheckIndexIter != checkAttris.end()*/ &&
+					sameAttriCoordIndex && sameNegAttri)
 				{
 					DNSRule newRule = joinRulesAt(coordCheckIndex, rules[j], rules[i], casesInTarget);
 					rules[i].markedForErasal = true;
 					rules[j].markedForErasal = true;
-					rules.push_back(newRule); // Add the newRule to the vector
-					nextLoop = true;
+					combinedRules.push_back(newRule); // Add the newRule to the vector
+					exitLoop = true;
 					break;
 				}
 			}
 		}
 	}
-	// Delete marked rules
-	rules.erase(std::remove_if(rules.begin(), rules.end(),
-		[](const DNSRule& rule) { return rule.markedForErasal; }), rules.end());
 
-	return rules;
+	// Add non-marked rules to combinedRules
+	for (const DNSRule& rule : rules)
+	{
+		if (!rule.markedForErasal)
+			combinedRules.push_back(rule);
+	}
+
+	return combinedRules;
 }
+
 
 /*DNSRule DomNominalSet::joinRulesAt(int joinIndex, DNSRule rule1, DNSRule rule2, int casesInTarget)
 {
