@@ -43,6 +43,8 @@ public:
 	vector<int> orIndexes; //this will have the indexes of the used Attributes which are OR, for example: x1 = 5 or x1 = 2
 	vector<int> andIndexes;
 	vector<double> negatedAttributesIndexes; //list of negated attributes.
+	bool combinedRule = false;
+	bool markedForErasal = false;
 
 private:
 

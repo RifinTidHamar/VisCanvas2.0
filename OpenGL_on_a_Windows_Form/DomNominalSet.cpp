@@ -4165,6 +4165,12 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 	//combine rules with little overlap
 	//allGroupRules = combineAndTest(totalTargetInData, allGroupRules, 5, 95);
 
+	//combine rules that only have two sub-rules which one similar attribute
+	allGroupRules = combineSimilarTwoClauseRules(allGroupRules, totalTargetInData);
+	/////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////
 	toReturn.push_back(("\nAll Generated rules: " + to_string(allGroupRules.size()) + " All cases covered: " +
 		to_string(allGroupCases.size()) + " Total target class cases covered by rules: " + to_string(casesInTargetClass) +
 		" Total incorrectly predicted cases: " + to_string(incorrectCases.size()) + ", Target cases in data: " + to_string(totalTargetInData) + "\n\n"));
@@ -4185,9 +4191,6 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 		vector<int> curCoord = curRule.getCoordinatesUsed();
 		vector<double> curAttri = curRule.getAttributesUsed();
 		vector<double> negatedAttri = curRule.getNegatedAttributesIndexes();
-
-
-
 
 		int curIndex = 0;
 		for (int j = 0; j < curCoord.size(); j++)
@@ -4259,26 +4262,21 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 						else if (lessThanGreaterThanCount == 0)
 						{
 							toReturn.push_back("X" + to_string(correspondingCoord + 1) + " = " + to_string((int)orderedAttributes[k]) + "\n");
+							if (k < orderedAttributes.size() - 1)
+							{
+								toReturn.push_back("OR\n");
+							}
 						}
 						else
 						{
 							toReturn.push_back(to_string(lessThanGreaterThanStart) + " <= X" + to_string(correspondingCoord + 1) + " <= " + to_string((int)orderedAttributes[k]) + "\n");
 							lessThanGreaterThanCount = 0;
+							if (k < orderedAttributes.size() - 1)
+							{
+								toReturn.push_back("OR\n");
+							}
 						}
-						/*if (orderedAttributes[k] == curSequent + 1)
-						{
-							sequentCount++;
-						}
-						else if (sequentCount == 0)
-						{
-							toReturn.push_back("X" + to_string(curSequent + 1) + " = " + to_string(orderedAttributes.back()) + "\n");
-							curSequent = orderedAttributes[k];
-						}
-						else
-						{
-							double val = orderedAttributes[sequentCount];
-							toReturn.push_back(to_string(curSequent + 1) + " <= X" + to_string(correspondingCoord + 1) + " <= " + to_string(orderedAttributes.front() + 1) + "\n");
-						}*/
+
 					}
 				}
 			}
@@ -4313,7 +4311,123 @@ pair<vector<string>, vector<DNSRule>> DomNominalSet::MTBRGSequential(double prec
 	return finalResults;
 }//End of rule generation sequential all attributes.
 
-//combineRulesGenerated://good
+vector<DNSRule> DomNominalSet::combineSimilarTwoClauseRules(vector<DNSRule> rules, int casesInTarget)
+{
+	for (size_t i = 0; i < rules.size(); ++i)
+	{
+		if (rules[i].getCoordinatesUsed().size() > 2)
+			continue;
+
+		vector<int> curCoords = rules[i].getCoordinatesUsed();
+		vector<double> curAttris = rules[i].getAttributesUsed();
+
+		bool nextLoop = false;
+
+		for (size_t j = i + 1; j < rules.size(); ++j)
+		{
+			if (rules[j].getCoordinatesUsed().size() > 2 || rules[j].markedForErasal)
+				continue;
+			if (nextLoop)
+				break;
+			vector<int> checkCoords = rules[j].getCoordinatesUsed();
+			vector<double> checkAttris = rules[j].getAttributesUsed();
+
+			for (int k = 0; k < 2; k++)
+			{
+				vector<int>::iterator coordCheckIndexIter;
+				vector<double>::iterator attriCheckIndexIter;
+
+				coordCheckIndexIter = std::find(checkCoords.begin(), checkCoords.end(), curCoords[k]);
+				attriCheckIndexIter = std::find(checkAttris.begin(), checkAttris.end(), curAttris[k]);
+
+				int coordCheckIndex = coordCheckIndexIter - checkCoords.begin();
+				int attriCheckIndex = attriCheckIndexIter - checkAttris.begin();
+
+				if (coordCheckIndexIter != checkCoords.end() && attriCheckIndexIter != checkAttris.end() &&
+					coordCheckIndex == attriCheckIndex)
+				{
+					DNSRule newRule = joinRulesAt(coordCheckIndex, rules[j], rules[i], casesInTarget);
+					rules[i].markedForErasal = true;
+					rules[j].markedForErasal = true;
+					rules.push_back(newRule); // Add the newRule to the vector
+					nextLoop = true;
+					break;
+				}
+			}
+		}
+	}
+	// Delete marked rules
+	rules.erase(std::remove_if(rules.begin(), rules.end(),
+		[](const DNSRule& rule) { return rule.markedForErasal; }), rules.end());
+
+	return rules;
+}
+
+/*DNSRule DomNominalSet::joinRulesAt(int joinIndex, DNSRule rule1, DNSRule rule2, int casesInTarget)
+{
+	DNSRule combinedRule;
+	//probably here is wehre things need to be fixed
+	vector<double> joinedAttributes;
+	joinedAttributes.push_back(rule1.getAttributesUsed()[joinIndex]);
+	joinedAttributes.push_back(rule1.getAttributesUsed()[1 - joinIndex]);
+	joinedAttributes.push_back(rule2.getAttributesUsed()[1 - joinIndex]);
+
+	vector<int> joinedCoordinates;
+	joinedCoordinates.push_back(rule1.getCoordinatesUsed()[joinIndex]);
+	joinedCoordinates.push_back(rule1.getCoordinatesUsed()[1 - joinIndex]);
+	joinedCoordinates.push_back(rule2.getCoordinatesUsed()[1 - joinIndex]);
+
+	combinedRule.setAttributesUsed(joinedAttributes);
+	combinedRule.setCoordinatesUsed(joinedCoordinates);
+
+	combinedRule.setCasesUsed(intersectVectors(rule1.getCasesUsed(), rule2.getCasesUsed()));
+	combinedRule.combinedRule = true;
+	combinedRule.setNegatedAttributesIndexes(combineNegatedAttributes(rule1, rule2));
+	combinedRule.setCorrectCases(combinedRule.getCasesUsed().size());// mergeVectors(rule1.getCorrectCases(), rule2.getCorrectCases()));//can't just add correct cases since some correct casess might be the same.
+	combinedRule.setIncorrectCases(0);// rule1.getIncorrectCases() + rule2.getIncorrectCases());//same as above
+	combinedRule.setTotalCases(combinedRule.getCasesUsed().size());
+	combinedRule.setTotalCoverage(((double)combinedRule.getTotalCases() / (double)casesInTarget) * 100);
+	combinedRule.setRuleClass(rule1.getRuleClass()); // set the class of the first rule (assuming they are the same--which they are!)
+	combinedRule.setPrecision(100);
+	combinedRule.orIndexes.push_back(1);
+	combinedRule.andIndexes.push_back(0);
+	return combinedRule;
+}*/
+
+DNSRule DomNominalSet::joinRulesAt(int joinIndex, DNSRule rule1, DNSRule rule2, int casesInTarget)
+{
+	DNSRule combinedRule;
+
+	vector<double> joinedAttributes;
+	joinedAttributes.push_back(rule1.getAttributesUsed()[joinIndex]);
+	joinedAttributes.push_back(rule1.getAttributesUsed()[1 - joinIndex]);
+	joinedAttributes.push_back(rule2.getAttributesUsed()[1 - joinIndex]);
+
+	vector<int> joinedCoordinates;
+	joinedCoordinates.push_back(rule1.getCoordinatesUsed()[joinIndex]);
+	joinedCoordinates.push_back(rule1.getCoordinatesUsed()[1 - joinIndex]);
+	joinedCoordinates.push_back(rule2.getCoordinatesUsed()[1 - joinIndex]);
+
+	combinedRule.setAttributesUsed(joinedAttributes);
+	combinedRule.setCoordinatesUsed(joinedCoordinates);
+
+	combinedRule.setCasesUsed(intersectVectors(rule1.getCasesUsed(), rule2.getCasesUsed()));
+	combinedRule.combinedRule = true;
+	combinedRule.setNegatedAttributesIndexes(combineNegatedAttributes(rule1, rule2));
+	combinedRule.setCorrectCases(combinedRule.getCasesUsed().size());
+	combinedRule.setIncorrectCases(0);
+	combinedRule.setTotalCases(combinedRule.getCasesUsed().size());
+	combinedRule.setTotalCoverage(static_cast<double>(combinedRule.getTotalCases()) / casesInTarget * 100);
+	combinedRule.setRuleClass(rule1.getRuleClass());
+	combinedRule.setPrecision(100);
+	combinedRule.orIndexes.push_back(1);
+	combinedRule.andIndexes.push_back(0);
+
+	return combinedRule;
+}
+
+
+//in use from above comment
 int DomNominalSet::calculateOverlap(DNSRule rule1, DNSRule rule2) 
 {
 	//this if may not really be necessary
@@ -4355,7 +4469,7 @@ int DomNominalSet::calculateOverlap(DNSRule rule1, DNSRule rule2)
 	return overlapCases;
 }
 
-//good
+//not in use
 vector<double> DomNominalSet::intersectVectors(vector<double> one, vector<double> two)
 {
 	vector<double> mergedVec;
@@ -4373,7 +4487,7 @@ vector<double> DomNominalSet::intersectVectors(vector<double> one, vector<double
 	return mergedVec;
 }
 
-//good
+//not in use
 vector<int> DomNominalSet::intersectVectors(vector<int> one, vector<int> two)
 {
 	vector<int> mergedVec;
@@ -4391,18 +4505,21 @@ vector<int> DomNominalSet::intersectVectors(vector<int> one, vector<int> two)
 	return mergedVec;
 }
 
+//not in use
 vector<double> DomNominalSet::unionVectors(vector<double> one, vector<double> two)
 {
 	one.insert(one.end(), two.begin(), two.end());
 	return one;
 }
 
+//not in use
 vector<int> DomNominalSet::unionVectors(vector<int> one, vector<int> two)
 {
 	one.insert(one.end(), two.begin(), two.end());
 	return one;
 }
 
+//not in use
 vector<double> DomNominalSet::combineNegatedAttributes(DNSRule one, DNSRule two)
 {
 	for (int i = 0; i < two.getNegatedAttributesIndexes().size(); i++)
@@ -4412,6 +4529,24 @@ vector<double> DomNominalSet::combineNegatedAttributes(DNSRule one, DNSRule two)
 	return one.getNegatedAttributesIndexes();
 }
 
+DNSRule DomNominalSet::mergeRules(DNSRule rule1, DNSRule rule2, int casesInTarget)
+{
+	DNSRule combinedRule;
+	combinedRule.setCasesUsed(intersectVectors(rule1.getCasesUsed(), rule2.getCasesUsed()));
+	combinedRule.combinedRule = true;
+	combinedRule.setAttributesUsed(intersectVectors(rule1.getAttributesUsed(), rule2.getAttributesUsed()));
+	combinedRule.setNegatedAttributesIndexes(combineNegatedAttributes(rule1, rule2));
+	combinedRule.setCoordinatesUsed(intersectVectors(rule1.getCoordinatesUsed(), rule2.getCoordinatesUsed()));
+	combinedRule.setCorrectCases(combinedRule.getCasesUsed().size());// mergeVectors(rule1.getCorrectCases(), rule2.getCorrectCases()));//can't just add correct cases since some correct casess might be the same.
+	combinedRule.setIncorrectCases(0);// rule1.getIncorrectCases() + rule2.getIncorrectCases());//same as above
+	combinedRule.setTotalCases(combinedRule.getCasesUsed().size());
+	combinedRule.setTotalCoverage(((double)combinedRule.getTotalCases() / (double)casesInTarget) * 100);
+	combinedRule.setRuleClass(rule1.getRuleClass()); // set the class of the first rule (assuming they are the same)
+	combinedRule.setPrecision(100);
+	return combinedRule;
+}
+
+//not in use
 DNSRule DomNominalSet::combineRules(DNSRule rule1, DNSRule rule2, double overlapThreshold, int casesInTarget) 
 {
 	int overlapCases = calculateOverlap(rule1, rule2);
@@ -4447,6 +4582,7 @@ DNSRule DomNominalSet::combineRules(DNSRule rule1, DNSRule rule2, double overlap
 	return combinedRule;
 }
 
+//not in use
 double DomNominalSet::calculatePrecision(DNSRule rule) 
 {
 	if (rule.getTotalCases() == 0) {
@@ -4455,6 +4591,7 @@ double DomNominalSet::calculatePrecision(DNSRule rule)
 	return ((double)rule.getCorrectCases() / (double)rule.getTotalCases()) * 100;
 }
 
+//not in use
 vector<DNSRule> DomNominalSet::combineAndTest(int casesInTargetClass, vector<DNSRule> rules, double overlapThreshold, double minPrecision) 
 {
 	//vector<DNSRule> combinedRules;

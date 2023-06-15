@@ -262,6 +262,7 @@
     <ClCompile Include="SetCluster.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="NormalizationStyle.cpp" />
+    <ClCompile Include="michaelRuleGen.cpp" />
     <ClCompile Include="threadedLoadingForm.cpp" />
     <ClCompile Include="VisCanvas.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -291,6 +292,7 @@
     <ClInclude Include="AdditionalSettings.h">
       <FileType>CppForm</FileType>
     </ClInclude>
+    <ClInclude Include="michaelRuleGen.h" />
     <ClInclude Include="NormalizationStyle.h" />
     <ClInclude Include="IntervalGrouping.h" />
     <ClInclude Include="IntervalGroupStarting.h" />

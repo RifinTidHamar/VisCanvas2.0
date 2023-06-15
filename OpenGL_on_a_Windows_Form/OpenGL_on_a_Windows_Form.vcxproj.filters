@@ -154,6 +154,9 @@
     <ClCompile Include="threadedLoadingForm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="michaelRuleGen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -301,6 +304,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="threadedLoadingForm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="michaelRuleGen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

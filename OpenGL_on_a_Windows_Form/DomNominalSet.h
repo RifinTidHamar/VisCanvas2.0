@@ -77,8 +77,11 @@ public:
 	vector<int> intersectVectors(vector<int> one, vector<int> two);
 	vector<double> unionVectors(vector<double> one, vector<double> two);
 	vector<double> combineNegatedAttributes(DNSRule one, DNSRule two);
+	DNSRule joinRulesAt(int joinIndex, DNSRule rule1, DNSRule rule2, int casesInTarget);
 	vector<int> unionVectors(vector<int> one, vector<int> two);
+	vector<DNSRule> combineSimilarTwoClauseRules(vector <DNSRule> rules, int casesInTarget);
 	vector<DNSRule> combineAndTest(int casesInTargetClass, vector<DNSRule> rules, double overlapThreshold, double minPrecision);
+	DNSRule mergeRules(DNSRule rule1, DNSRule rule2, int casesInTarget);
 	vector<DNSRule> MTBRuleGeneration(double PrecThresh, vector<int> group, double covThresh, int targetClass, int totalCasesInTarget);
 	vector<string> MTBRuleGenResults(double precisionThresh, vector<vector<int>>groups, int targetClass);
 	vector<string> ParetoFrontRuleGenWithOverlap(double precisionThresh, vector<vector<int>>groups, int targetClass);
